@@ -1,0 +1,57 @@
+version: "3"
+
+services:
+  db:
+    image: postgres:${DOCKER_POSTGRESQL_VERSION}-alpine
+    container_name: db
+    env_file: .env
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${DOCKER_POSTGRESQL_PASSWORD}
+    ports:
+      - ${DOCKER_POSTGRESQL_EXTERNAL_PORT}:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  php-fpm:
+    build:
+      context: ./docker/config/php
+      args:
+        PHP_VERSION: ${DOCKER_PHP_VERSION}
+        TIMEZONE: ${DOCKER_TIMEZONE}
+        COMPOSER_VERSION: ${DOCKER_COMPOSER_VERSION}
+    container_name: php-fpm
+    restart: always
+    env_file: .env
+    volumes:
+      - ./:/var/www/app
+    external_links:
+      - db
+
+  nginx:
+    image: nginx:${DOCKER_NGINX_VERSION}-alpine
+    env_file: .env
+    restart: on-failure
+    container_name: nginx
+    ports:
+      - ${DOCKER_NGINX_EXTERNAL_PORT}:80    
+    volumes:
+      - ./docker/config/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./:/var/www/app
+
+  redis:
+    image: redis:${DOCKER_REDIS_VERSION}-alpine
+    env_file: .env
+    restart: on-failure
+    container_name: redis
+    ports:
+      - ${DOCKER_REDIS_EXTERNAL_PORT}:6379
+    volumes:
+      - redis_data:/var/lib/redis
+      - ./docker/config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
